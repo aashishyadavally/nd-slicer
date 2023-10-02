@@ -4,7 +4,7 @@ Program slicing, the process of extracting program statements that influence val
 
 ### Dataset Links
 
-Here is the link for the dataset used in this paper:
+Here is the link for the dataset used in this paper: [link](https://zenodo.org/record/8062703)
 
 ### Model Assets
 
@@ -17,7 +17,7 @@ Here are the links for ND-Slicer with GraphCodeBERT ([link]()) and CodeExecutor 
 ```
 $ python run.py --help
 usage: run.py [-h] --data_dir DATA_DIR --output_dir OUTPUT_DIR --encoder {unixcoder,graphcodebert} --decoder {unixcoder,graphcodebert,transformer} [--use_pointer] [--do_train] [--do_eval]
-              [--do_eval_base] [--do_eval_qual] [--do_eval_loop] [--do_eval_im] [--do_eval_crash] [--do_eval_partial] [--print_stats] [--load_model_path LOAD_MODEL_PATH] [--dataset {codenet,bugsinpy}]
+              [--do_eval_base] [--do_eval_qual] [--do_eval_loop] [--do_eval_im] [--do_eval_crash] [--do_eval_partial] [--load_model_path LOAD_MODEL_PATH] [--dataset {codenet,bugsinpy}]
               [--config_name CONFIG_NAME] [--max_source_size MAX_SOURCE_SIZE] [--max_target_size MAX_TARGET_SIZE] [--per_gpu_train_batch_size PER_GPU_TRAIN_BATCH_SIZE]
               [--train_batch_size TRAIN_BATCH_SIZE] [--eval_batch_size EVAL_BATCH_SIZE] [--num_train_epochs NUM_TRAIN_EPOCHS] [--gradient_accumulation_steps GRADIENT_ACCUMULATION_STEPS]
               [--learning_rate LEARNING_RATE] [--weight_decay WEIGHT_DECAY] [--adam_epsilon ADAM_EPSILON] [--max_grad_norm MAX_GRAD_NORM] [--seed SEED] [--beam_size BEAM_SIZE]
@@ -40,7 +40,6 @@ options:
   --do_eval_im          Whether to run inter-method evaluation.
   --do_eval_crash       Whether to evaluate crash detection.
   --do_eval_partial     Whether to evaluate for partial programs.
-  --print_stats         Print dataset statistics.
   --load_model_path LOAD_MODEL_PATH
                         Path to trained model: Should contain the .bin files
   --dataset {codenet,bugsinpy}
@@ -81,7 +80,7 @@ options:
 python run.py --data_dir <path-to-data> --output_dir <path-to-output> --encoder unixcoder --decoder transformer --do_train --learning_rate 1e-4 --num_train_epochs 10 --train_batch_size 16 --eval_batch_size 16
 ```
    
-3. Inference
+2. Inference
 ```
 python run.py --data_dir <path-to-data> --output_dir <path-to-output> --encoder unixcoder --decoder transformer --do_eval --eval_batch_size 16
 ```
