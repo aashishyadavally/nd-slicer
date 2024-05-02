@@ -1,3 +1,12 @@
+# Data/Model Assets
+data/codenetmut_test.json
+data/full-dataset.jsonl
+data/train-dataset.jsonl
+data/val-dataset.jsonl
+data/test-dataset.jsonl
+data/feats_*.pkl
+outputs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
