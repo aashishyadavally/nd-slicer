@@ -63,16 +63,16 @@ See [link](https://github.com/aashishyadavally/nd-slicer/tree/main/src/README.md
 
 | Experiment                                        | Table # in Paper | Run Command(s)                                                        | Model Artifact(s) for Direct Inference |
 | ---                                               | :----:           | :---:                                                                 | :---:                                  |
-| **(RQ1)** Intrinsic Evaluation on *Executable Python Code* | 1       | [click here](src/README.md/#intrinsic-evaluation-on-executable-python-code)   | [CodeExecutor (B2)]()                 |
+| **(RQ1)** Intrinsic Evaluation on *Executable Python Code* | 1       | [click here](src/README.md/#intrinsic-evaluation-on-executable-python-code-(rq1))   | [CodeExecutor (B2)]()                 |
 |                                                   |                  |                                                                       | [GraphCodeBERT + PointerTransformer (B3)]()          |
 |                                                   |                  |                                                                       | [GraphCodeBERT + Transformer (B4)]()          |
 |                                                   |                  |                                                                       | [CodeExecutor + PointerTransformer (B5)]()          |
 |                                                   |                  |                                                                       | [CodeExecutor + Transformer (B6)]()          |
-| **(RQ2)** Intrinsic Evaluation on *Non-Executable Python Code*  | -  |  [click here](src/README.md/#intrinsic-evaluation-on-partial-code)    | [CodeExecutor + Transformer (B6)]()  |
+| **(RQ2)** Intrinsic Evaluation on *Non-Executable Python Code*  | -  |  [click here](src/README.md/#intrinsic-evaluation-on-non-executable-python-code-(rq2))    | [CodeExecutor + Transformer (B6)]()  |
 | **(RQ3)** Extrinic Evaluation (Crash Detection)   | 2                |  [click here](src/README.md/#extrinsic-evaluation)                    | [CodeExecutor + Transformer (B6)]()
-| **(RQ4)** Qualitative Analysis (Statement Types)  | 3                |  [click here](src/README.md/#statement-types/)                        |  [CodeExecutor + Transformer (B6)]()
-| **(RQ5)** Qualitative Analysis (Execution Iterations)  | 4           |  [click here](src/README.md/#execution-iterations/)                   |  [CodeExecutor + Transformer (B6)]()
-| **(RQ6)** Inter-Procedural Analysis               | -                |  [click here](src/README.md/#inter-procedural-analysis/)              |  [CodeExecutor + Transformer (B6)]()
+| **(RQ4)** Qualitative Analysis (Statement Types)  | 3                |  [click here](src/README.md/#qualitative-evaluation/)                        |  [CodeExecutor + Transformer (B6)]()
+| **(RQ5)** Qualitative Analysis (Execution Iterations)  | 4           |  [click here](src/README.md/#qualitative-evaluation/)                   |  [CodeExecutor + Transformer (B6)]()
+| **(RQ6)** Inter-Procedural Analysis               | -                |  [click here](src/README.md/#qualitative-evaluation/)              |  [CodeExecutor + Transformer (B6)]()
 
 ## Contributing Guidelines
 There are no specific guidelines for contributing, apart from a few general guidelines we tried to follow, such as:
