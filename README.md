@@ -1,92 +1,88 @@
-## Predictive Program Slicing via Execution Knowledge-Guided Dynamic Dependence Learning
+# Artifact for "Predictive Program Slicing via Execution Knowledge-Guided Dynamic Dependence Learning"
 
-Program slicing, the process of extracting program statements that influence values at a designated location (known as the slicing criterion), is pivotal in both manual and automated debugging. However, such slicing techniques prove ineffective in scenarios where executing specific inputs is prohibitively expensive, or even impossible, as with partial code. In this paper, we introduce ND-Slicer, a predictive slicing methodology that caters to specific executions based on a particular input, overcoming the need for actual execution. We enable such a process by leveraging execution-aware pre-training to learn the dynamic program dependencies, including both dynamic data and control dependencies between variables in the slicing criterion and the remaining program statements. Such knowledge forms the cornerstone for constructing a predictive backward slice. Our empirical evaluation revealed a high accuracy in predicting program slices, achieving an exact-match accuracy of 81.31% and a ROUGE-LCS score of 0.954 on Python programs. As an extrinsic evaluation, we illustrate ND-Slicer usefulness in crash detection, with it locating faults with an accuracy of 63.88%. Furthermore, we include an in-depth qualitative evaluation, assessing ND-Slicer's understanding of branched structures such as if-else blocks and loops, as well as the control flow in inter-procedural calls.
+ND-Slicer is a learning-based predictive slicing tool. The source code, data, and model artifacts are publicly available on [GitHub](https://github.com/aashishyadavally/nd-slicer) and [Zenodo]().
 
-### Model Architecture for ND-Slicer
-<p align="center">
-<img width="750" height="400" src="https://github.com/se-doubleblind001/nd-slicer/blob/main/images/nd-slicer-architecture.png">
-</p>
+## Table of Contents
 
-### Dataset Links
+* [Getting Started](#getting-started)
+  - [Setup](#setup)
+    - [Hardware Requirements](#hardware-requirements)
+    - [Project Environment](#project-environment)
+  - [Directory Structure](#directory-structure)
+  - [Usage Guide](#usage-guide)
+* [Contributing Guidelines](#contributing-guidelines)
+* [License](#license)
 
-Here is the link for the dataset used in this paper: [link](https://zenodo.org/record/8062703)
+## Getting Started
+This section describes the preqrequisites, and contains instructions, to get the project up and running.
 
-### Model Assets
+### Setup 
 
-Here are the links for ND-Slicer with GraphCodeBERT ([link]()) and CodeExecutor ([link]()).
+#### Hardware Requirements
+``ND-Slicer`` requires a GPU to run *fast* and produce the results. On machines without a GPU, note that it can be notoriously slow.
 
-### Getting Started with ND-Slicer
+#### Project Environment
+Currently, ``ND-Slicer`` works well on Ubuntu OS, and can be set up easily with all the prerequisite packages by following these instructions (if ``conda`` is already installed, update to the latest version with ``conda update conda``, and skip steps 1 - 3):
+  1. Download the latest, appropriate version of [conda](https://repo.anaconda.com/miniconda/) for your machine (tested with ``conda 23.11.0``).
+  2. Install  it by running the `conda_install.sh` file, with the command:
+     ```bash
+     $ bash conda_install.sh
+     ```
+  3. Add `conda` to bash profile:
+     ```bash
+     $ source ~/.bashrc
+     ```
+  4. Navigate to ``nd-slicer`` (top-level directory) and create a conda virtual environment with the included `environment.yml` file using the following command:
+     
+     ```bash
+     $ conda env create -f environment.yml
+     ```
 
-#### Run Instructions
+     To test successful installation, make sure ``autoslicer`` appears in the list of conda environments returned with ``conda env list``.
+  5. Activate the virtual environment with the following command:
+     
+     ```bash
+     $ conda activate autoslicer
+     ```
 
-```
-$ python run.py --help
-usage: run.py [-h] --data_dir DATA_DIR --output_dir OUTPUT_DIR --encoder {unixcoder,graphcodebert} --decoder {unixcoder,graphcodebert,transformer} [--use_pointer] [--do_train] [--do_eval]
-              [--do_eval_base] [--do_eval_qual] [--do_eval_loop] [--do_eval_im] [--do_eval_crash] [--do_eval_partial] [--load_model_path LOAD_MODEL_PATH] [--dataset {codenet,bugsinpy}]
-              [--config_name CONFIG_NAME] [--max_source_size MAX_SOURCE_SIZE] [--max_target_size MAX_TARGET_SIZE] [--per_gpu_train_batch_size PER_GPU_TRAIN_BATCH_SIZE]
-              [--train_batch_size TRAIN_BATCH_SIZE] [--eval_batch_size EVAL_BATCH_SIZE] [--num_train_epochs NUM_TRAIN_EPOCHS] [--gradient_accumulation_steps GRADIENT_ACCUMULATION_STEPS]
-              [--learning_rate LEARNING_RATE] [--weight_decay WEIGHT_DECAY] [--adam_epsilon ADAM_EPSILON] [--max_grad_norm MAX_GRAD_NORM] [--seed SEED] [--beam_size BEAM_SIZE]
+### Directory Structure
 
-options:
-  -h, --help            show this help message and exit
-  --data_dir DATA_DIR   The input/data caching path
-  --output_dir OUTPUT_DIR
-                        The output directory where the model predictions and checkpoints will be written.
-  --encoder {unixcoder,graphcodebert}
-                        Encoder in Seq2Seq framework.
-  --decoder {unixcoder,graphcodebert,transformer}
-                        Decoder in Seq2Seq framework.
-  --use_pointer         Whether to use selective pointer networks.
-  --do_train            Whether to run training.
-  --do_eval             Whether to run evaluation.
-  --do_eval_base        Whether to run baseline evaluation.
-  --do_eval_qual        Whether to run qualitative evaluation.
-  --do_eval_loop        Whether to run qualitative evaluation on loops.
-  --do_eval_im          Whether to run inter-method evaluation.
-  --do_eval_crash       Whether to evaluate crash detection.
-  --do_eval_partial     Whether to evaluate for partial programs.
-  --load_model_path LOAD_MODEL_PATH
-                        Path to trained model: Should contain the .bin files
-  --dataset {codenet,bugsinpy}
-                        Dataset for intrinsic evaluation.
-  --config_name CONFIG_NAME
-                        Optional pretrained config name or path if not the same as model_name_or_path
-  --max_source_size MAX_SOURCE_SIZE
-                        Optional input sequence length after tokenization.
-  --max_target_size MAX_TARGET_SIZE
-                        Optional output sequence length after tokenization.
-  --per_gpu_train_batch_size PER_GPU_TRAIN_BATCH_SIZE
-                        Batch size per GPU/CPU for training.
-  --train_batch_size TRAIN_BATCH_SIZE
-                        Batch size per GPU/CPU for evaluation.
-  --eval_batch_size EVAL_BATCH_SIZE
-                        Batch size per GPU/CPU for evaluation.
-  --num_train_epochs NUM_TRAIN_EPOCHS
-                        Total number of training epochs to perform.
-  --gradient_accumulation_steps GRADIENT_ACCUMULATION_STEPS
-                        Number of updates steps to accumulate before performing a backward/update pass.
-  --learning_rate LEARNING_RATE
-                        The initial learning rate for Adam.
-  --weight_decay WEIGHT_DECAY
-                        Weight deay if we apply some.
-  --adam_epsilon ADAM_EPSILON
-                        Epsilon for Adam optimizer.
-  --max_grad_norm MAX_GRAD_NORM
-                        Max gradient norm.
-  --seed SEED           random seed for initialization
-  --beam_size BEAM_SIZE
-                        beam size for beam search
-```
+#### 1. Data Artifacts
+Navigate to ``nd-slicer/data/`` to find:
+* Raw dataset file (``codenetmut_test.json``) -- use these files to build train/validation/test splits from scratch.
+* Processed dataset files (``{full|train|val|test}-dataset.jsonl``) -- use these files to benchmark predictive slicing approaches, or replicate intrinsic evaluation results in the paper (Section 5, Table 1).
 
+#### 2. Model Artifacts
+Navigate to ``nd-slicer/outputs/`` to find the trained model weights for CodeExecutor (B2), GraphCodeBERT+PointerTransformer (B3), GraphCodeBERT+Transformer (B4), CodeExecutor+PointerTransformer (B5), and CodeExecutor+Transformer (B6).
 
-#### Sample Commands for Experiment Replication
-1. Training
-```
-python run.py --data_dir <path-to-data> --output_dir <path-to-output> --encoder unixcoder --decoder transformer --do_train --learning_rate 1e-4 --num_train_epochs 10 --train_batch_size 16 --eval_batch_size 16
-```
-   
-2. Inference
-```
-python run.py --data_dir <path-to-data> --output_dir <path-to-output> --encoder unixcoder --decoder transformer --do_eval --eval_batch_size 16
-```
+#### 3. Code
+Navigate to ``nd-slicer/src/`` to find the source code for running all the experiments/using ND-Slicer to predict dynamic slices for a Python program.
 
+### Usage Guide
+See [link](https://github.com/aashishyadavally/nd-slicer/tree/main/src/README.md) for details about replicating results in the paper, as well as using ``ND-Slicer`` to predict slices for Python programs. Here's an executive summary of the same:
+
+| Experiment                                        | Table # in Paper | Run Command(s)                                                        | Model Artifact(s) for Direct Inference |
+| ---                                               | :----:           | :---:                                                                 | :---:                                  |
+| **(RQ1)** Intrinsic Evaluation on *Executable Python Code* | 1       | [click here](src/README.md/#intrinsic-evaluation-on-executable-python-code)   | [CodeExecutor (B2)]()                 |
+|                                                   |                  |                                                                       | [GraphCodeBERT + PointerTransformer (B3)]()          |
+|                                                   |                  |                                                                       | [GraphCodeBERT + Transformer (B4)]()          |
+|                                                   |                  |                                                                       | [CodeExecutor + PointerTransformer (B5)]()          |
+|                                                   |                  |                                                                       | [CodeExecutor + Transformer (B6)]()          |
+| **(RQ2)** Intrinsic Evaluation on *Non-Executable Python Code*  | -  |  [click here](src/README.md/#intrinsic-evaluation-on-partial-code)    | [CodeExecutor + Transformer (B6)]()  |
+| **(RQ3)** Extrinic Evaluation (Crash Detection)   | 2                |  [click here](src/README.md/#extrinsic-evaluation)                    | [CodeExecutor + Transformer (B6)]()
+| **(RQ4)** Qualitative Analysis (Statement Types)  | 3                |  [click here](src/README.md/#statement-types/)                        |  [CodeExecutor + Transformer (B6)]()
+| **(RQ5)** Qualitative Analysis (Execution Iterations)  | 4           |  [click here](src/README.md/#execution-iterations/)                   |  [CodeExecutor + Transformer (B6)]()
+| **(RQ6)** Inter-Procedural Analysis               | -                |  [click here](src/README.md/#inter-procedural-analysis/)              |  [CodeExecutor + Transformer (B6)]()
+
+## Contributing Guidelines
+There are no specific guidelines for contributing, apart from a few general guidelines we tried to follow, such as:
+* Code should follow PEP8 standards as closely as possible
+* Code should carry appropriate comments, wherever necessary, and follow the docstring convention in the repository.
+
+If you see something that could be improved, send a pull request! 
+We are always happy to look at improvements, to ensure that `nd-slicer`, as a project, is the best version of itself. 
+
+If you think something should be done differently (or is just-plain-broken), please create an issue.
+
+## License
+See the [LICENSE](https://github.com/aashishyadavally/nd-slicer/tree/main/LICENSE) file for more details.
