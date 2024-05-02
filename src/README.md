@@ -59,10 +59,6 @@ Follow these instructions:
 ### For Experiments Replication
 #### Intrinsic evaluation on executable Python code (RQ1)
    * B1, CodeExecutor + Dynamic Slicing Algorithm
-     - Training:
-       ```bash
-
-       ```
      - Inference:
        ```bash
        python run.py --data_dir ../data --output_dir ../outputs --encoder unixcoder --decoder unixcoder --do_eval_base --eval_batch_size 512
@@ -71,7 +67,7 @@ Follow these instructions:
    * B2, CodeExecutor
      - Training:
        ```bash
-
+       python run.py --data_dir ../data --output_dir ../outputs --encoder unixcoder --decoder unixcoder --do_train --learning_rate 0.0001 --num_train_epochs 10 
        ```
      - Inference:
        ```bash
@@ -81,7 +77,7 @@ Follow these instructions:
    * B3, GraphCodeBERT + Pointer-Transformer
      - Training:
        ```bash
-
+       python run.py --data_dir ../data --output_dir ../outputs --encoder graphcodebert --decoder transformer --do_train --learning_rate 0.0001 --num_train_epochs 10 --use_pointer
        ```
      - Inference:
        ```bash
@@ -91,7 +87,7 @@ Follow these instructions:
    * B4, GraphCodeBERT + Transformer
      - Training:
        ```bash
-
+       python run.py --data_dir ../data --output_dir ../outputs --encoder graphcodebert --decoder transformer --do_train --learning_rate 0.0001 --num_train_epochs 10
        ```
      - Inference:
        ```bash
@@ -101,7 +97,7 @@ Follow these instructions:
    * B5, CodeExecutor + Pointer-Transformer
      - Training:
        ```bash
-
+       python run.py --data_dir ../data --output_dir ../outputs --encoder unixcoder --decoder transformer --do_train --learning_rate 0.0001 --num_train_epochs 10 --use_pointer
        ```
      - Inference:
        ```bash
@@ -111,7 +107,7 @@ Follow these instructions:
    * B6, CodeExecutor + Pointer-Transformer
      - Training:
        ```bash
-
+       python run.py --data_dir ../data --output_dir ../outputs --encoder unixcoder --decoder transformer --do_train --learning_rate 0.0001 --num_train_epochs 10
        ```
      - Inference:
        ```bash
