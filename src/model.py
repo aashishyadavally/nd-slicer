@@ -1,18 +1,51 @@
-"""References:
+'''Contains Seq2Seq frameworks, both with and without Pointer Networks.
+
+References:
 [1] https://colab.research.google.com/drive/1lobspU9b7dTO_HuoX-3nibZspTwfa5aX?usp=sharing#scrollTo=OC2Hwa712_2x
 [2] Vinyals, O., Fortunato, M., & Jaitly, N. (2015). Pointer networks.
-"""
+'''
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class Seq2Seq(nn.Module):
+    '''Implementation for Seq2Seq framework, borrows heavily from [1].
+
+    Parameters:
+        encoder (transformers.RobertaModel): Encoder in Seq2Seq.
+        encoder_key (str): Encoder identifier.
+        decoder (transformers.RobertaModel or torch.nn.TransformerDecoder): Decoder in Seq2Seq.
+        decoder_key (str): Decoder identifier.
+        config (transformers.RobertaConfig): Model configuration.
+        dense (torch.nn.Linear): Linear layer.
+        lm_head (torch.nn.Linear): Classification head.
+        lsm (torch.nn.LogSoftmax): Loss function.
+        ignore_cross_entropy_index (int): Index to ignore token towards loss computation.
+        beam_size (int): Beam size for beam search.
+        max_source_length (int): Input sequence length after tokenization. 
+        max_target_length (int): Output sequence length after tokenization.
+        sos_id (int): Start-of-symbol in decoder.
+        eos_id (int): End-of-symbol in decoder.
+    '''
     def __init__(
-            self, encoder, encoder_key, decoder, decoder_key, tokenizer, config,
-            beam_size=None, max_source_length=None, max_target_length=None,
-            sos_id=None, eos_id=None,
-        ):
+        self, encoder, encoder_key, decoder, decoder_key, tokenizer, config, beam_size=None,
+        max_source_length=None, max_target_length=None, sos_id=None, eos_id=None,
+    ):
+        '''Initializes ``Seq2Seq``.
+
+        Arguments:
+            encoder (transformers.RobertaModel): Encoder in Seq2Seq.
+            encoder_key (str): Encoder identifier.
+            decoder (transformers.RobertaModel or torch.nn.TransformerDecoder): Decoder in Seq2Seq.
+            decoder_key (str): Decoder identifier.
+            tokenizer (transformers.RobertaTokenizer): Input tokenizer.
+            config (transformers.RobertaConfig): Model configuration.
+            beam_size (int): Beam size for beam search.
+            max_source_length (int): Input sequence length after tokenization. 
+            max_target_length (int): Output sequence length after tokenization.
+            sos_id (int): Start-of-symbol in decoder.
+            eos_id (int): End-of-symbol in decoder.
+        '''
         super(Seq2Seq, self).__init__()
         self.encoder = encoder
         self.encoder_key = encoder_key
@@ -26,21 +59,24 @@ class Seq2Seq(nn.Module):
             )
         else:
             self.register_buffer(
-                "bias", torch.tril(torch.ones((1024, 1024), dtype=torch.uint8)).view(1, 1024, 1024)
+                "bias", torch.tril(torch.ones(
+                    (1024, 1024), dtype=torch.uint8)).view(1, 1024, 1024)
             )
 
         if self.encoder_key == self.decoder_key == 'graphcodebert':
             self.register_buffer(
-                "bias", torch.tril(torch.ones((512, 512), dtype=torch.uint8)).view(1, 512, 512)
+                "bias", torch.tril(torch.ones(
+                    (512, 512), dtype=torch.uint8)).view(1, 512, 512)
             )
 
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = nn.Linear(
+            config.hidden_size, config.vocab_size, bias=False)
         self.lm_head.weight = self.encoder.embeddings.word_embeddings.weight
 
         self.lsm = nn.LogSoftmax(dim=-1)
         self.ignore_cross_entropy_index = 1
-    
+
         self.beam_size = beam_size
         self.max_source_length = max_source_length
         self.max_target_length = max_target_length
@@ -53,23 +89,30 @@ class Seq2Seq(nn.Module):
 
         if self.decoder_key == 'transformer':
             source_mask = source_ids.ne(1)
-            encoder_output = self.encoder(source_ids, attention_mask=source_mask)
+            encoder_output = self.encoder(
+                source_ids, attention_mask=source_mask)
             encoder_output = encoder_output[0].permute([1, 0, 2]).contiguous()
-            attn_mask = -1e4 * (1 - self.bias[:target_ids.shape[1], :target_ids.shape[1]])
-            tgt_embeddings = self.encoder.embeddings(target_ids).permute([1, 0, 2]).contiguous()
+            attn_mask = -1e4 * \
+                (1 - self.bias[:target_ids.shape[1], :target_ids.shape[1]])
+            tgt_embeddings = self.encoder.embeddings(
+                target_ids).permute([1, 0, 2]).contiguous()
             out = self.decoder(tgt_embeddings, encoder_output, tgt_mask=attn_mask,
                                memory_key_padding_mask=torch.logical_not(source_mask.bool()))
-            hidden_states = torch.tanh(self.dense(out)).permute([1, 0, 2]).contiguous()
+            hidden_states = torch.tanh(self.dense(
+                out)).permute([1, 0, 2]).contiguous()
             lm_logits = self.lm_head(hidden_states)
 
         if self.decoder_key == self.encoder_key and self.decoder_key in ['unixcoder', 'graphcodebert']:
-            source_mask = source_ids.ne(1)[:, None, :] * source_ids.ne(1)[:, :, None]
-            encoder_output = self.encoder(source_ids, attention_mask=source_mask, use_cache=True)
+            source_mask = source_ids.ne(
+                1)[:, None, :] * source_ids.ne(1)[:, :, None]
+            encoder_output = self.encoder(
+                source_ids, attention_mask=source_mask, use_cache=True)
             ids = torch.cat((source_ids, target_ids), -1)
-            target_mask = self.bias[:, source_ids.size(-1) :ids.size(-1), :ids.size(-1)].bool()
+            target_mask = self.bias[:,
+                                    source_ids.size(-1):ids.size(-1), :ids.size(-1)].bool()
             target_mask = target_mask & ids[:, None, :].ne(1)
             decoder_output = self.decoder(target_ids, attention_mask=target_mask,
-                                past_key_values=encoder_output.past_key_values).last_hidden_state
+                                          past_key_values=encoder_output.past_key_values).last_hidden_state
             lm_logits = self.lm_head(decoder_output)
 
         # Shift so that tokens < n predict n
@@ -77,16 +120,18 @@ class Seq2Seq(nn.Module):
         shift_logits = lm_logits[..., :-1, :].contiguous()
         shift_labels = target_ids[..., 1:].contiguous()
         # Flatten the tokens
-        loss_fct = nn.CrossEntropyLoss(ignore_index=self.ignore_cross_entropy_index)
+        loss_fct = nn.CrossEntropyLoss(
+            ignore_index=self.ignore_cross_entropy_index)
         loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1))[active_loss],
                         shift_labels.view(-1)[active_loss])
         outputs = loss, loss * active_loss.sum(), active_loss.sum()
         return outputs
-    
+
     def generate(self, source_ids):
         if self.decoder_key == 'transformer':
             source_mask = source_ids.ne(1)
-            encoder_output = self.encoder(source_ids, attention_mask=source_mask, use_cache=True)
+            encoder_output = self.encoder(
+                source_ids, attention_mask=source_mask, use_cache=True)
             encoder_output = encoder_output[0].permute([1, 0, 2]).contiguous()
             preds = []
             pad = torch.cuda.LongTensor(1).fill_(-999)
@@ -101,50 +146,62 @@ class Seq2Seq(nn.Module):
                 for _ in range(self.max_target_length):
                     if beam.done():
                         break
-                    attn_mask = -1e4 * (1 - self.bias[:input_ids.shape[1], :input_ids.shape[1]])
-                    tgt_embeddings = self.encoder.embeddings(input_ids).permute([1, 0, 2]).contiguous()
+                    attn_mask = -1e4 * \
+                        (1 - self.bias[:input_ids.shape[1],
+                         :input_ids.shape[1]])
+                    tgt_embeddings = self.encoder.embeddings(
+                        input_ids).permute([1, 0, 2]).contiguous()
                     out = self.decoder(tgt_embeddings, context, tgt_mask=attn_mask,
                                        memory_key_padding_mask=torch.logical_not(context_mask.bool()))
                     out = torch.tanh(self.dense(out))
-                    hidden_states = out.permute([1, 0, 2]).contiguous()[:, -1, :]
+                    hidden_states = out.permute(
+                        [1, 0, 2]).contiguous()[:, -1, :]
                     out = self.lsm(self.lm_head(hidden_states)).data
                     beam.advance(out)
-                    input_ids.data.copy_(input_ids.data.index_select(0, beam.getCurrentOrigin()))
-                    input_ids = torch.cat((input_ids, beam.getCurrentState()), -1)
+                    input_ids.data.copy_(input_ids.data.index_select(
+                        0, beam.getCurrentOrigin()))
+                    input_ids = torch.cat(
+                        (input_ids, beam.getCurrentState()), -1)
                 hyp = beam.getHyp(beam.getFinal())
                 pred = beam.buildTargetTokens(hyp)[:self.beam_size]
-                pred = [torch.cat([x.view(-1) for x in p] + \
+                pred = [torch.cat([x.view(-1) for x in p] +
                                   [pad] * (self.max_target_length - len(p))).view(1, -1) for p in pred]
                 preds.append(torch.cat(pred, 0).unsqueeze(0))
 
         if self.decoder_key == self.encoder_key and self.decoder_key in ['unixcoder', 'graphcodebert']:
-            source_mask = source_ids.ne(1)[:, None, :] * source_ids.ne(1)[:, :, None]
-            encoder_output = self.encoder(source_ids, attention_mask=source_mask, use_cache=True)
+            source_mask = source_ids.ne(
+                1)[:, None, :] * source_ids.ne(1)[:, :, None]
+            encoder_output = self.encoder(
+                source_ids, attention_mask=source_mask, use_cache=True)
             preds = []
             zero = torch.cuda.LongTensor(1).fill_(0)
             source_len = list(source_ids.ne(1).sum(-1).cpu().numpy())
             for i in range(source_ids.shape[0]):
-                context = [[x[i: i+1, :, :source_len[i]].repeat(self.beam_size, 1, 1, 1) for x in y] \
-                            for y in encoder_output.past_key_values]
+                context = [[x[i: i+1, :, :source_len[i]].repeat(self.beam_size, 1, 1, 1) for x in y]
+                           for y in encoder_output.past_key_values]
                 beam = Beam(self.beam_size, self.sos_id, self.eos_id)
                 input_ids = beam.getCurrentState()
-                context_ids = source_ids[i:i+1, :source_len[i]].repeat(self.beam_size, 1)
+                context_ids = source_ids[i:i+1,
+                                         :source_len[i]].repeat(self.beam_size, 1)
                 for _ in range(self.max_target_length):
                     if beam.done():
                         break
                     ids = torch.cat((context_ids, input_ids), -1)
-                    target_mask = self.bias[:, context_ids.size(-1):ids.size(-1), :ids.size(-1)].bool()
+                    target_mask = self.bias[:, context_ids.size(
+                        -1):ids.size(-1), :ids.size(-1)].bool()
                     target_mask = target_mask & ids[:, None, :].ne(1)
                     out = self.decoder(input_ids, attention_mask=target_mask,
-                                        past_key_values=context).last_hidden_state
+                                       past_key_values=context).last_hidden_state
                     hidden_states = out[:, -1, :]
                     out = self.lsm(self.lm_head(hidden_states)).data
                     beam.advance(out)
-                    input_ids.data.copy_(input_ids.data.index_select(0, beam.getCurrentOrigin()))
-                    input_ids = torch.cat((input_ids, beam.getCurrentState()), -1)
+                    input_ids.data.copy_(input_ids.data.index_select(
+                        0, beam.getCurrentOrigin()))
+                    input_ids = torch.cat(
+                        (input_ids, beam.getCurrentState()), -1)
                 hyp = beam.getHyp(beam.getFinal())
                 pred = beam.buildTargetTokens(hyp)[:self.beam_size]
-                pred = [torch.cat([x.view(-1) for x in p] + \
+                pred = [torch.cat([x.view(-1) for x in p] +
                                   [zero] * (self.max_target_length - len(p))).view(1, -1) for p in pred]
                 preds.append(torch.cat(pred, 0).unsqueeze(0))
 
@@ -153,10 +210,44 @@ class Seq2Seq(nn.Module):
 
 
 class PointerGeneratedSeq2Seq(nn.Module):
+    '''Extension of Seq2Seq framework, to use Pointer Networks in Decoder.
+
+    Parameters:
+        encoder (transformers.RobertaModel): Encoder in Seq2Seq.
+        encoder_key (str): Encoder identifier.
+        decoder (transformers.RobertaModel or torch.nn.TransformerDecoder): Decoder in Seq2Seq.
+        decoder_key (str): Decoder identifier.
+        config (transformers.RobertaConfig): Model configuration.
+        dense (torch.nn.Linear): Linear layer.
+        lm_head (torch.nn.Linear): Classification head.
+        lsm (torch.nn.LogSoftmax): Loss function.
+        ignore_cross_entropy_index (int): Index to ignore token towards loss computation.
+        beam_size (int): Beam size for beam search.
+        max_source_length (int): Input sequence length after tokenization. 
+        max_target_length (int): Output sequence length after tokenization.
+        sos_id (int): Start-of-symbol in decoder.
+        eos_id (int): End-of-symbol in decoder.
+    '''
+
     def __init__(
-            self, encoder, encoder_key, decoder, tokenizer, config, beam_size=None,
-            max_source_length=None, max_target_length=None, sos_id=None, eos_id=None,
-        ):
+        self, encoder, encoder_key, decoder, tokenizer, config, beam_size=None,
+        max_source_length=None, max_target_length=None, sos_id=None, eos_id=None,
+    ):
+        '''Initializes ``PointerGeneratedSeq2Seq``.
+
+        Arguments:
+            encoder (transformers.RobertaModel): Encoder in Seq2Seq.
+            encoder_key (str): Encoder identifier.
+            decoder (transformers.RobertaModel or torch.nn.TransformerDecoder): Decoder in Seq2Seq.
+            decoder_key (str): Decoder identifier.
+            tokenizer (transformers.RobertaTokenizer): Input tokenizer.
+            config (transformers.RobertaConfig): Model configuration.
+            beam_size (int): Beam size for beam search.
+            max_source_length (int): Input sequence length after tokenization. 
+            max_target_length (int): Output sequence length after tokenization.
+            sos_id (int): Start-of-symbol in decoder.
+            eos_id (int): End-of-symbol in decoder.
+        '''
         super(PointerGeneratedSeq2Seq, self).__init__()
         self.encoder = encoder
         self.encoder_key = encoder_key
@@ -169,18 +260,20 @@ class PointerGeneratedSeq2Seq(nn.Module):
         )
 
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.lm_head = nn.Linear(config.hidden_size, max_source_length, bias=False)
+        self.lm_head = nn.Linear(
+            config.hidden_size, max_source_length, bias=False)
         lm_token_ids = torch.tensor(
-            tokenizer.convert_tokens_to_ids([f"<unk-{i}>" for i in range(max_source_length)]),
+            tokenizer.convert_tokens_to_ids(
+                [f"<unk-{i}>" for i in range(max_source_length)]),
             dtype=torch.long,
         )
         self.lm_head.weight = nn.Parameter(
-            self.encoder.embeddings.word_embeddings.weight.data[lm_token_ids], 
+            self.encoder.embeddings.word_embeddings.weight.data[lm_token_ids],
             requires_grad=True
         )
         self.lsm = nn.LogSoftmax(dim=-1)
         self.ignore_cross_entropy_index = max_source_length
-    
+
         self.beam_size = beam_size
         self.max_source_length = max_source_length
         self.max_target_length = max_target_length
@@ -194,11 +287,14 @@ class PointerGeneratedSeq2Seq(nn.Module):
         source_mask = source_ids.ne(1)
         encoder_output = self.encoder(source_ids, attention_mask=source_mask)
         encoder_output = encoder_output[0].permute([1, 0, 2]).contiguous()
-        attn_mask = -1e4 * (1 - self.bias[:target_ids.shape[1], :target_ids.shape[1]])
-        tgt_embeddings = self.encoder.embeddings(target_ids).permute([1, 0, 2]).contiguous()
+        attn_mask = -1e4 * \
+            (1 - self.bias[:target_ids.shape[1], :target_ids.shape[1]])
+        tgt_embeddings = self.encoder.embeddings(
+            target_ids).permute([1, 0, 2]).contiguous()
         out = self.decoder(tgt_embeddings, encoder_output, tgt_mask=attn_mask,
-                            memory_key_padding_mask=torch.logical_not(source_mask.bool()))
-        hidden_states = torch.tanh(self.dense(out)).permute([1, 0, 2]).contiguous()
+                           memory_key_padding_mask=torch.logical_not(source_mask.bool()))
+        hidden_states = torch.tanh(self.dense(
+            out)).permute([1, 0, 2]).contiguous()
         lm_logits = self.lm_head(hidden_states)
 
         # Shift so that tokens < n predict n
@@ -206,15 +302,17 @@ class PointerGeneratedSeq2Seq(nn.Module):
         shift_logits = lm_logits[..., :-1, :].contiguous()
         shift_labels = target_ids[..., 1:].contiguous()
         # Flatten the tokens
-        loss_fct = nn.CrossEntropyLoss(ignore_index=self.ignore_cross_entropy_index)
+        loss_fct = nn.CrossEntropyLoss(
+            ignore_index=self.ignore_cross_entropy_index)
         loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1))[active_loss],
                         shift_labels.view(-1)[active_loss])
         outputs = loss, loss * active_loss.sum(), active_loss.sum()
         return outputs
-    
+
     def generate(self, source_ids):
         source_mask = source_ids.ne(1)
-        encoder_output = self.encoder(source_ids, attention_mask=source_mask, use_cache=True)
+        encoder_output = self.encoder(
+            source_ids, attention_mask=source_mask, use_cache=True)
         encoder_output = encoder_output[0].permute([1, 0, 2]).contiguous()
         preds = []
         pad = torch.cuda.LongTensor(1).fill_(-999)
@@ -229,20 +327,23 @@ class PointerGeneratedSeq2Seq(nn.Module):
             for _ in range(self.max_target_length):
                 if beam.done():
                     break
-                attn_mask = -1e4 * (1 - self.bias[:input_ids.shape[1], :input_ids.shape[1]])
-                tgt_embeddings = self.encoder.embeddings(input_ids).permute([1, 0, 2]).contiguous()
+                attn_mask = -1e4 * \
+                    (1 - self.bias[:input_ids.shape[1], :input_ids.shape[1]])
+                tgt_embeddings = self.encoder.embeddings(
+                    input_ids).permute([1, 0, 2]).contiguous()
                 out = self.decoder(tgt_embeddings, context, tgt_mask=attn_mask,
-                                    memory_key_padding_mask=torch.logical_not(context_mask.bool()))
+                                   memory_key_padding_mask=torch.logical_not(context_mask.bool()))
                 out = torch.tanh(self.dense(out))
                 hidden_states = out.permute([1, 0, 2]).contiguous()[:, -1, :]
                 out = self.lsm(self.lm_head(hidden_states)).data
                 beam.advance(out)
-                input_ids.data.copy_(input_ids.data.index_select(0, beam.getCurrentOrigin()))
+                input_ids.data.copy_(input_ids.data.index_select(
+                    0, beam.getCurrentOrigin()))
                 input_ids = torch.cat((input_ids, beam.getCurrentState()), -1)
             hyp = beam.getHyp(beam.getFinal())
             pred = beam.buildTargetTokens(hyp)[:self.beam_size]
-            pred = [torch.cat([x.view(-1) for x in p] + \
-                                [pad] * (self.max_target_length - len(p))).view(1, -1) for p in pred]
+            pred = [torch.cat([x.view(-1) for x in p] +
+                              [pad] * (self.max_target_length - len(p))).view(1, -1) for p in pred]
             preds.append(torch.cat(pred, 0).unsqueeze(0))
 
         preds = torch.cat(preds, 0)
@@ -250,98 +351,146 @@ class PointerGeneratedSeq2Seq(nn.Module):
 
 
 class Beam(object):
-	def __init__(self, size, sos, eos):
-		self.size = size
-		self.tt = torch.cuda
-		# The score for each translation on the beam.
-		self.scores = self.tt.FloatTensor(size).zero_()
-		# The backpointers at each time-step.
-		self.prevKs = []
-		# The outputs at each time-step.
-		self.nextYs = [self.tt.LongTensor(size).fill_(0)]
-		self.nextYs[0][0] = sos
-		# Has EOS topped the beam yet.
-		self._eos = eos
-		self.eosTop = False
-		# Time and k pair for finished.
-		self.finished = []
+    '''Implementation for beam search.
+    '''
+    def __init__(self, size, sos, eos):
+        '''Initialize the Beam search.
 
-	def getCurrentState(self):
-		"Get the outputs for the current timestep."
-		batch = self.tt.LongTensor(self.nextYs[-1]).view(-1, 1)
-		return batch
+        Arguments:
+            size (int): Beam size for beam search.
+            sos (int): Start-of-symbol in decoder.
+            eos (int): End-of-symbol in decoder.
+        '''
+        self.size = size
+        self.tt = torch.cuda
+        # The score for each translation on the beam.
+        self.scores = self.tt.FloatTensor(size).zero_()
+        # The backpointers at each time-step.
+        self.prevKs = []
+        # The outputs at each time-step.
+        self.nextYs = [self.tt.LongTensor(size).fill_(0)]
+        self.nextYs[0][0] = sos
+        # Has EOS topped the beam yet.
+        self._eos = eos
+        self.eosTop = False
+        # Time and k pair for finished.
+        self.finished = []
 
-	def getCurrentOrigin(self):
-		"Get the backpointers for the current timestep."
-		return self.prevKs[-1]
+    def getCurrentState(self):
+        '''Get the outputs for the current timestep.
 
-	def advance(self, wordLk):
-		numWords = wordLk.size(1)
+        Returns:
+            batch (torch.Tensor): Outputs for the current timestep.
+        '''
+        batch = self.tt.LongTensor(self.nextYs[-1]).view(-1, 1)
+        return batch
 
-		# Sum the previous scores.
-		if len(self.prevKs) > 0:
-			beamLk = wordLk + self.scores.unsqueeze(1).expand_as(wordLk)
+    def getCurrentOrigin(self):
+        '''Get the backpointers for the current timestep.
 
-			# Don't let EOS have children.
-			for i in range(self.nextYs[-1].size(0)):
-				if self.nextYs[-1][i] == self._eos:
-					beamLk[i] = -1e20
-		else:
-			beamLk = wordLk[0]
-		flatBeamLk = beamLk.view(-1)
-		bestScores, bestScoresId = flatBeamLk.topk(self.size, 0, True, True)
+        Returns:
+            (int): Backpointer for the current timestep.
+        '''
+        return self.prevKs[-1]
 
-		self.scores = bestScores
+    def advance(self, wordLk):
+        '''Advance to next timestep.
 
-		# bestScoresId is flattened beam x word array, so calculate which
-		# word and beam each score came from
-		prevK = bestScoresId // numWords
-		self.prevKs.append(prevK)
-		self.nextYs.append((bestScoresId - prevK * numWords))
+        Arguments:
+            wordLk (torch.Tensor): The word likelihoods.
+        '''
+        numWords = wordLk.size(1)
 
-		for i in range(self.nextYs[-1].size(0)):
-			if self.nextYs[-1][i] == self._eos:
-				s = self.scores[i]
-				self.finished.append((s, len(self.nextYs) - 1, i))
+        # Sum the previous scores.
+        if len(self.prevKs) > 0:
+            beamLk = wordLk + self.scores.unsqueeze(1).expand_as(wordLk)
 
-		# End condition is when top-of-beam is EOS and no global score.
-		if self.nextYs[-1][0] == self._eos:
-			self.eosTop = True
+            # Don't let EOS have children.
+            for i in range(self.nextYs[-1].size(0)):
+                if self.nextYs[-1][i] == self._eos:
+                    beamLk[i] = -1e20
+        else:
+            beamLk = wordLk[0]
+        flatBeamLk = beamLk.view(-1)
+        bestScores, bestScoresId = flatBeamLk.topk(self.size, 0, True, True)
 
-	def done(self):
-		return self.eosTop and len(self.finished) >=self.size
+        self.scores = bestScores
 
-	def getFinal(self):
-		if len(self.finished) == 0:
-			self.finished.append((self.scores[0], len(self.nextYs) - 1, 0))
-		self.finished.sort(key=lambda a: -a[0])
-		if len(self.finished) != self.size:
-			unfinished=[]
-			for i in range(self.nextYs[-1].size(0)):
-				if self.nextYs[-1][i] != self._eos:
-					s = self.scores[i]
-					unfinished.append((s, len(self.nextYs) - 1, i)) 
-			unfinished.sort(key=lambda a: -a[0])
-			self.finished+=unfinished[:self.size-len(self.finished)]
-		return self.finished[:self.size]
+        # bestScoresId is flattened beam x word array, so calculate which
+        # word and beam each score came from
+        prevK = bestScoresId // numWords
+        self.prevKs.append(prevK)
+        self.nextYs.append((bestScoresId - prevK * numWords))
 
-	def getHyp(self, beam_res):
-		hyps=[]
-		for _,timestep, k in beam_res:
-			hyp = []
-			for j in range(len(self.prevKs[:timestep]) - 1, -1, -1):
-				hyp.append(self.nextYs[j+1][k])
-				k = self.prevKs[j][k]
-			hyps.append(hyp[::-1])
-		return hyps
-	
-	def buildTargetTokens(self, preds):
-		sentence=[]
-		for pred in preds:
-			tokens = []
-			for tok in pred:
-				if tok==self._eos:
-					break
-				tokens.append(tok)
-			sentence.append(tokens)
-		return sentence
+        for i in range(self.nextYs[-1].size(0)):
+            if self.nextYs[-1][i] == self._eos:
+                s = self.scores[i]
+                self.finished.append((s, len(self.nextYs) - 1, i))
+
+        # End condition is when top-of-beam is EOS and no global score.
+        if self.nextYs[-1][0] == self._eos:
+            self.eosTop = True
+
+    def done(self):
+        '''Check if the beam search is done.
+
+        Returns:
+            (bool): ``True`` if beam search is done, ``False`` otherwise.
+        '''
+        return self.eosTop and len(self.finished) >= self.size
+
+    def getFinal(self):
+        '''Get the final results of the beam search.
+
+        Returns:
+            (list): List of final results.
+        '''
+        if len(self.finished) == 0:
+            self.finished.append((self.scores[0], len(self.nextYs) - 1, 0))
+        self.finished.sort(key=lambda a: -a[0])
+        if len(self.finished) != self.size:
+            unfinished = []
+            for i in range(self.nextYs[-1].size(0)):
+                if self.nextYs[-1][i] != self._eos:
+                    s = self.scores[i]
+                    unfinished.append((s, len(self.nextYs) - 1, i))
+            unfinished.sort(key=lambda a: -a[0])
+            self.finished += unfinished[:self.size-len(self.finished)]
+        return self.finished[:self.size]
+
+    def getHyp(self, beam_res):
+        '''Get the hypotheses from the beam results.
+
+        Arguments:
+            beam_res (list): Beam search results.
+
+        Returns:
+            hyps (list): List of hypotheses.
+        '''
+        hyps = []
+        for _, timestep, k in beam_res:
+            hyp = []
+            for j in range(len(self.prevKs[:timestep]) - 1, -1, -1):
+                hyp.append(self.nextYs[j+1][k])
+                k = self.prevKs[j][k]
+            hyps.append(hyp[::-1])
+        return hyps
+
+    def buildTargetTokens(self, preds):
+        '''Build the target tokens from the predictions.
+
+        Parameters:
+            preds (list): Predictions.
+
+        Returns:
+            sentence (list): List of target tokens.
+        '''
+        sentence = []
+        for pred in preds:
+            tokens = []
+            for tok in pred:
+                if tok == self._eos:
+                    break
+                tokens.append(tok)
+            sentence.append(tokens)
+        return sentence
